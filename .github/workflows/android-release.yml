@@ -1,0 +1,113 @@
+# Zostavenie appky spartON pre Android: podpísané release AAB (Google Play) + APK, overenie podpisu upload kľúčom,
+# artefakty na stiahnutie. Kľúč, heslo a google-services.json sú v GitHub Actions secrets (base64), nie v repozitári.
+name: Android – vydanie
+
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', 'www/**', 'capacitor.config.json', 'package.json', 'package-lock.json', '.github/workflows/android-release.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # SHA-256 upload kľúča spartON (verejný odtlačok, rovnaký ako v assetlinks.json)
+  UPLOAD_SHA256: 'E7:DD:68:49:EE:D7:45:F2:9C:06:F7:DC:B2:44:42:93:78:21:01:F4:7A:20:D9:31:E8:41:7D:30:A2:49:34:CC'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Závislosti a synchronizácia Capacitor
+        run: |
+          npm ci
+          npx cap sync android
+
+      - name: Tajomstvá do dočasných súborov
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          GSERVICES_B64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64" || { echo "::error::chýba secret ANDROID_UPLOAD_KEYSTORE_B64"; exit 1; }
+          test -n "$GSERVICES_B64" || { echo "::error::chýba secret ANDROID_GOOGLE_SERVICES_JSON_B64"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          echo "$GSERVICES_B64" | base64 -d > android/app/google-services.json
+          python3 -c "import json,sys; d=json.load(open('android/app/google-services.json')); assert any(c['client_info']['android_client_info']['package_name']=='eu.sparton.app' for c in d['client']); print('google-services.json: eu.sparton.app OK')"
+          echo "SPARTON_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+
+      - name: Zostavenie AAB a APK
+        working-directory: android
+        env:
+          SPARTON_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          SPARTON_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          SPARTON_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace bundleRelease assembleRelease lintRelease
+
+      - name: Overenie podpisu, verzie a povolení
+        run: |
+          set -euo pipefail
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          test -s "$AAB" && test -s "$APK"
+          APK_SHA=$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/.*certificate SHA-256 digest: //p' | head -1 | tr 'a-f' 'A-F' | sed 's/../&:/g;s/:$//')
+          AAB_SHA=$(keytool -printcert -jarfile "$AAB" | sed -n 's/.*SHA256: //p' | head -1 | tr -d ' ')
+          echo "APK SHA-256: $APK_SHA"
+          echo "AAB SHA-256: $AAB_SHA"
+          [ "$APK_SHA" = "$UPLOAD_SHA256" ] || { echo "::error::APK nie je podpísaný upload kľúčom"; exit 1; }
+          [ "$AAB_SHA" = "$UPLOAD_SHA256" ] || { echo "::error::AAB nie je podpísaný upload kľúčom"; exit 1; }
+          "$BT/aapt2" dump badging "$APK" > badging.txt
+          grep -E "^package:|^sdkVersion|^targetSdkVersion|^application-label:|uses-permission" badging.txt | tee manifest.txt
+          grep -q "name='eu.sparton.app' versionCode='1' versionName='1.0.0'" badging.txt
+          grep -q "targetSdkVersion:'36'" badging.txt
+          if grep -E "AD_ID|READ_EXTERNAL_STORAGE|READ_MEDIA_IMAGES|ACCESS_FINE_LOCATION|RECORD_AUDIO" badging.txt; then echo "::error::nečakané povolenie"; exit 1; fi
+          {
+            echo "### spartON Android 1.0.0 (versionCode 1)"
+            echo "- podpis upload kľúča SHA-256 \`$APK_SHA\` ✅"
+            echo "- AAB $(du -h "$AAB" | cut -f1), APK $(du -h "$APK" | cut -f1)"
+            echo '```'; cat manifest.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p out
+          cp "$AAB" out/sparton-1.0.0-1.aab
+          cp "$APK" out/sparton-1.0.0-1.apk
+          cp manifest.txt out/manifest.txt
+          (cd out && sha256sum sparton-1.0.0-1.aab sparton-1.0.0-1.apk > SHA256SUMS.txt)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sparton-android-1.0.0-1
+          path: out/
+          retention-days: 90
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-report
+          path: android/app/build/reports/lint-results-release.html
+          if-no-files-found: ignore
+
+      - name: Upratanie tajomstiev
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks" android/app/google-services.json

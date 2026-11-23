@@ -1,0 +1,48 @@
+# Verejné repo georgonr/sparton-app – zoznam POVOLENÝCH súborov (všetko ostatné v pracovnej kópii je súkromné:
+# secrets\, logy, analýzy, interné poznámky, overenia z produkcie, skripty kroku 2A).
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/package.json
+!/package-lock.json
+!/capacitor.config.json
+!/www/
+!/android/
+!/ios/
+!/.github/
+!/tests/
+!/scripts/
+/scripts/*
+!/scripts/check-public.mjs
+!/scripts/gen-icons.mjs
+
+# nikdy nie kľúče, heslá ani konfigurácia Firebase (do zostavenia ich dáva GitHub Actions zo secrets)
+*.jks
+*.keystore
+*.p12
+*.p8
+*.pem
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+secrets/
+.env
+.env.*
+keystore.properties
+
+# zostavenie
+node_modules/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+ios/App/build/
+ios/DerivedData/
+*.aab
+*.apk
+*.idsig
+test-results/

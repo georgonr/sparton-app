@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">spartON</string>
+    <string name="title_activity_main">spartON</string>
+    <string name="package_name">eu.sparton.app</string>
+    <string name="custom_url_scheme">eu.sparton.app</string>
+
+    <string name="push_channel_name">Upozornenia klubu</string>
+    <string name="push_channel_description">Tréningy, zápasy, platby a správy z tvojich klubov</string>
+
+    <string name="bio_prompt_title">Odomkni spartON</string>
+    <string name="bio_prompt_subtitle">Odtlačkom prsta, tvárou alebo zámkom telefónu</string>
+    <string name="bio_offer_title">Zamykať appku?</string>
+    <string name="bio_offer_text">Pri otvorení spartON overíme, že si to ty – odtlačkom prsta, tvárou alebo zámkom telefónu. Údaje ostávajú v telefóne. Zmeníš to dlhým podržaním ikony spartON → Nastavenia appky.</string>
+    <string name="bio_offer_yes">Zapnúť</string>
+    <string name="bio_offer_no">Teraz nie</string>
+
+    <string name="lock_title">spartON je zamknutý</string>
+    <string name="lock_text">Odomkni appku odtlačkom prsta, tvárou alebo zámkom telefónu.</string>
+    <string name="lock_unlock">Odomknúť</string>
+
+    <string name="settings_title">Nastavenia appky</string>
+    <string name="settings_short">Nastavenia</string>
+    <string name="settings_bio_on">Zapnúť zámok odtlačkom alebo tvárou</string>
+    <string name="settings_bio_off">Vypnúť zámok odtlačkom alebo tvárou</string>
+    <string name="settings_notifications">Upozornenia</string>
+    <string name="settings_close">Zavrieť</string>
+    <string name="settings_bio_unavailable">Najprv si v telefóne nastav zámok obrazovky, odtlačok prsta alebo odomknutie tvárou.</string>
+</resources>

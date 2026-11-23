@@ -1,0 +1,89 @@
+# Smoke test appky spartON na Android emulátore (štandardný ubuntu runner s KVM): štart appky, načítanie sparton.eu,
+# prihlásenie účtom pre recenziu heslom, skryté nákupy, tlačidlo Späť, hlboké odkazy, obrazovka offline.
+# Snímky obrazovky telefónu ako artefakt (podklad pre Google Play). Testuje debug zostavenie (rovnaký kód ako vydanie,
+# navyše zapnuté ladenie WebView pre ovládanie testom).
+name: Android – smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      locale:
+        description: 'Jazyk emulátora (sk-SK, cs-CZ, en-US)'
+        default: 'sk-SK'
+  push:
+    branches: [main]
+    paths: ['android/**', 'www/**', 'capacitor.config.json', 'tests/**', '.github/workflows/android-smoke.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-smoke-${{ github.ref }}-${{ inputs.locale || 'sk-SK' }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      LOCALE: ${{ inputs.locale || 'sk-SK' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: KVM pre emulátor
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Zostavenie debug APK
+        env:
+          GSERVICES_B64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          set -euo pipefail
+          npm ci
+          npx cap sync android
+          if [ -n "$GSERVICES_B64" ]; then echo "$GSERVICES_B64" | base64 -d > android/app/google-services.json; fi
+          cd android && chmod +x gradlew && ./gradlew --no-daemon assembleDebug
+          rm -f app/google-services.json
+
+      - name: Playwright (bez prehliadačov – ovláda webview v emulátore)
+        run: npm install --no-save --no-audit --no-fund playwright@1.65.1
+
+      - name: Emulátor a test
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          REVIEW_EMAIL: ${{ secrets.REVIEW_ADMIN_EMAIL }}
+          REVIEW_PASSWORD: ${{ secrets.REVIEW_ADMIN_PASSWORD }}
+          OUT: smoke-out
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          ram-size: 3072M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -change-locale ${{ env.LOCALE }}
+          script: bash tests/smoke.sh
+
+      - name: Súhrn
+        if: always()
+        run: cat smoke-out/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-${{ env.LOCALE }}
+          path: smoke-out/
+          retention-days: 30

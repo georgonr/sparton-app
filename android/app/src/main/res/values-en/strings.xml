@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="push_channel_name">Club notifications</string>
+    <string name="push_channel_description">Trainings, matches, payments and messages from your clubs</string>
+
+    <string name="bio_prompt_title">Unlock spartON</string>
+    <string name="bio_prompt_subtitle">With your fingerprint, face or screen lock</string>
+    <string name="bio_offer_title">Lock the app?</string>
+    <string name="bio_offer_text">When you open spartON, we will check it is you – with your fingerprint, face or screen lock. Your data stays on your phone. Change it any time: long-press the spartON icon → App settings.</string>
+    <string name="bio_offer_yes">Turn on</string>
+    <string name="bio_offer_no">Not now</string>
+
+    <string name="lock_title">spartON is locked</string>
+    <string name="lock_text">Unlock the app with your fingerprint, face or screen lock.</string>
+    <string name="lock_unlock">Unlock</string>
+
+    <string name="settings_title">App settings</string>
+    <string name="settings_short">Settings</string>
+    <string name="settings_bio_on">Turn on fingerprint or face lock</string>
+    <string name="settings_bio_off">Turn off fingerprint or face lock</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_close">Close</string>
+    <string name="settings_bio_unavailable">First set up a screen lock, fingerprint or face unlock on your phone.</string>
+</resources>

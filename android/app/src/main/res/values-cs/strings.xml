@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="push_channel_name">Upozornění klubu</string>
+    <string name="push_channel_description">Tréninky, zápasy, platby a zprávy z tvých klubů</string>
+
+    <string name="bio_prompt_title">Odemkni spartON</string>
+    <string name="bio_prompt_subtitle">Otiskem prstu, obličejem nebo zámkem telefonu</string>
+    <string name="bio_offer_title">Zamykat aplikaci?</string>
+    <string name="bio_offer_text">Při otevření spartON ověříme, že jsi to ty – otiskem prstu, obličejem nebo zámkem telefonu. Údaje zůstávají v telefonu. Změníš to dlouhým podržením ikony spartON → Nastavení aplikace.</string>
+    <string name="bio_offer_yes">Zapnout</string>
+    <string name="bio_offer_no">Teď ne</string>
+
+    <string name="lock_title">spartON je zamčený</string>
+    <string name="lock_text">Odemkni aplikaci otiskem prstu, obličejem nebo zámkem telefonu.</string>
+    <string name="lock_unlock">Odemknout</string>
+
+    <string name="settings_title">Nastavení aplikace</string>
+    <string name="settings_short">Nastavení</string>
+    <string name="settings_bio_on">Zapnout zámek otiskem nebo obličejem</string>
+    <string name="settings_bio_off">Vypnout zámek otiskem nebo obličejem</string>
+    <string name="settings_notifications">Upozornění</string>
+    <string name="settings_close">Zavřít</string>
+    <string name="settings_bio_unavailable">Nejdřív si v telefonu nastav zámek obrazovky, otisk prstu nebo odemknutí obličejem.</string>
+</resources>

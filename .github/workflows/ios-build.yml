@@ -1,0 +1,80 @@
+# iOS zostavenie appky spartON na macOS runneri – PRIPRAVENÉ, ZATIAĽ SA NESPÚŠŤA (len ručne).
+# Predpoklady (úloha majiteľa po schválení Apple Developer účtu): Team ID, distribučný certifikát (.p12) a
+# provisioning profil pre eu.sparton.app s Associated Domains (applinks:sparton.eu), Push a Sign in with Apple,
+# GoogleService-Info.plist z Firebase projektu sparton-app. Secrets: IOS_DIST_CERT_P12_B64, IOS_DIST_CERT_PASSWORD,
+# IOS_PROVISIONING_PROFILE_B64, IOS_TEAM_ID, IOS_GOOGLE_SERVICE_INFO_PLIST_B64.
+name: iOS – zostavenie (pripravené)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kontrola predpokladov
+        env:
+          TEAM: ${{ secrets.IOS_TEAM_ID }}
+          CERT: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+        run: |
+          if [ -z "$TEAM" ] || [ -z "$CERT" ] || [ -z "$PROFILE" ]; then
+            echo "::error::iOS ešte nie je nastavené (chýba Team ID, certifikát alebo profil) – pozri komentár v tomto workflow."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Závislosti a synchronizácia Capacitor
+        run: |
+          npm ci
+          npx cap sync ios
+
+      - name: Podpisovanie
+        env:
+          CERT: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          CERT_PW: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+          GSI: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          set -euo pipefail
+          KC="$RUNNER_TEMP/build.keychain-db"; KCPW=$(openssl rand -hex 16)
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          echo "$CERT" | base64 -d > "$RUNNER_TEMP/dist.p12"
+          security import "$RUNNER_TEMP/dist.p12" -P "$CERT_PW" -A -t cert -f pkcs12 -k "$KC"
+          security list-keychain -d user -s "$KC"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/sparton.mobileprovision
+          if [ -n "$GSI" ]; then echo "$GSI" | base64 -d > ios/App/App/GoogleService-Info.plist; fi
+          rm -f "$RUNNER_TEMP/dist.p12"
+
+      - name: Archív a IPA
+        env:
+          TEAM: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          cd ios/App
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Manual archive
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict><key>method</key><string>app-store-connect</string><key>teamID</key><string>$TEAM</string></dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/ipa"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sparton-ios
+          path: ${{ runner.temp }}/ipa/*.ipa

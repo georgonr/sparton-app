@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="sparton_page">#06140C</color>
+    <color name="sparton_ink">#E8F2EA</color>
+    <color name="sparton_muted">#A3B5AA</color>
+    <color name="colorAccent">#C8F560</color>
+</resources>

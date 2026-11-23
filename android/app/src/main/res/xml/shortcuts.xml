@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dlhé podržanie ikony appky → Nastavenia appky (biometrický zámok, upozornenia). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="settings"
+        android:shortcutLongLabel="@string/settings_title"
+        android:shortcutShortLabel="@string/settings_short">
+        <intent
+            android:action="eu.sparton.app.SETTINGS"
+            android:targetClass="eu.sparton.app.MainActivity"
+            android:targetPackage="eu.sparton.app" />
+    </shortcut>
+</shortcuts>

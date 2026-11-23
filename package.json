@@ -1,0 +1,23 @@
+{
+  "name": "sparton-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobilná appka spartON (Capacitor obal pre https://sparton.eu/app)",
+  "license": "UNLICENSED",
+  "author": "MACET, s.r.o.",
+  "scripts": {
+    "sync": "cap sync",
+    "sync:android": "cap sync android",
+    "sync:ios": "cap sync ios",
+    "check": "node scripts/check-public.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  }
+}

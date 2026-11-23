@@ -1,0 +1,41 @@
+{
+  "appId": "eu.sparton.app",
+  "appName": "spartON",
+  "webDir": "www",
+  "loggingBehavior": "none",
+  "server": {
+    "url": "https://sparton.eu/app",
+    "hostname": "sparton.eu",
+    "androidScheme": "https",
+    "iosScheme": "https",
+    "errorPath": "offline.html",
+    "allowNavigation": []
+  },
+  "android": {
+    "appendUserAgent": "spartON-App/1.0.0 (android)",
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "ios": {
+    "appendUserAgent": "spartON-App/1.0.0 (ios)",
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": true,
+    "scrollEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "launchAutoHide": false,
+      "backgroundColor": "#0b2a19",
+      "androidScaleType": "CENTER_INSIDE",
+      "showSpinner": false,
+      "splashFullScreen": false,
+      "splashImmersive": false
+    },
+    "SystemBars": {
+      "insetsHandling": "disable",
+      "style": "DEFAULT"
+    }
+  }
+}
