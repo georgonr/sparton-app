@@ -3,6 +3,9 @@
 set -uo pipefail
 mkdir -p smoke-out
 adb wait-for-device
+adb root >/dev/null 2>&1 || true
+sleep 3
+adb wait-for-device
 # jazyk zariadenia (Accept-Language webview) – reštart frameworku a počkanie, kým systém odpovedá
 LOCALE="${LOCALE:-sk-SK}"
 if [ "$(adb shell getprop persist.sys.locale | tr -d '\r')" != "$LOCALE" ]; then

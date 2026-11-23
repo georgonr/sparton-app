@@ -21,6 +21,7 @@ function record(name, ok, detail = '') {
 
 async function check(name, fn) {
   try {
+    if (typeof page !== 'undefined' && page && page.isClosed()) page = await getPage()
     const d = await fn()
     record(name, true, typeof d === 'string' ? d : '')
   } catch (e) {
@@ -43,11 +44,37 @@ async function shell(cmd) {
   return (await device.shell(cmd)).toString()
 }
 
+// Živá stránka webview: po načítaní dokumentu môže vzniknúť nový cieľ DevTools, starý sa zavrie.
 async function getPage() {
-  const wv = await device.webView({ pkg: PKG }, { timeout: 60_000 })
-  const page = await wv.page()
-  page.setDefaultTimeout(30_000)
-  return page
+  let last
+  for (let i = 0; i < 20; i++) {
+    try {
+      const wv = await device.webView({ pkg: PKG }, { timeout: 60_000 })
+      const first = await wv.page()
+      const pages = first.context().pages().filter((p) => !p.isClosed())
+      const live = pages.reverse().find((p) => /^https:\/\//.test(p.url())) || pages[0]
+      if (live) {
+        await live.evaluate(() => 1)
+        live.setDefaultTimeout(30_000)
+        return live
+      }
+    } catch (e) {
+      last = e
+    }
+    await sleep(1500)
+  }
+  throw last || new Error('webview appky sa nenašlo')
+}
+
+// navigácia odolná voči výmene cieľa DevTools (COOP, offline stránka)
+async function go(url, ms = 2000) {
+  try {
+    await page.goto(url, { waitUntil: 'load' })
+  } catch {
+    await sleep(1500)
+  }
+  page = await getPage()
+  await settle(page, ms)
 }
 
 async function settle(page, ms = 1500) {
@@ -86,7 +113,11 @@ await check('prihlásenie účtom pre recenziu (heslo)', async () => {
   await page.fill('input[name="email"]', process.env.REVIEW_EMAIL)
   await page.fill('input[name="password"]', process.env.REVIEW_PASSWORD)
   await page.click('button[type="submit"]')
-  await page.waitForURL(/\/app(\/|$)/, { timeout: 45_000 })
+  for (let i = 0; i < 30 && !/\/app(\/|$|\?)/.test(page.url()); i++) {
+    await sleep(1500)
+    page = await getPage()
+  }
+  if (!/\/app(\/|$|\?)/.test(page.url())) throw new Error(`po prihlásení ${page.url()}`)
   await settle(page, 2500)
   return page.url().replace(ORIGIN, '')
 })
@@ -106,8 +137,7 @@ await check('token push (FCM) v appke', async () => {
 
 async function visit(path, name, expect) {
   await check(`obrazovka ${path}`, async () => {
-    await page.goto(ORIGIN + path, { waitUntil: 'load' })
-    await settle(page, 2000)
+    await go(ORIGIN + path)
     if (expect) await expect()
     await screen(name)
     return page.url().replace(ORIGIN, '')
