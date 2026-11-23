@@ -3,6 +3,21 @@
 set -uo pipefail
 mkdir -p smoke-out
 adb wait-for-device
+# jazyk zariadenia (Accept-Language webview) – reštart frameworku a počkanie, kým systém odpovedá
+LOCALE="${LOCALE:-sk-SK}"
+if [ "$(adb shell getprop persist.sys.locale | tr -d '\r')" != "$LOCALE" ]; then
+  adb shell setprop persist.sys.locale "$LOCALE"
+  adb shell setprop ctl.restart zygote
+  sleep 15
+  for i in $(seq 1 60); do
+    if adb shell cmd package list packages >/dev/null 2>&1 && [ -n "$(adb shell pidof com.android.systemui | tr -d '\r')" ]; then break; fi
+    sleep 3
+  done
+  sleep 15
+fi
+adb shell wm dismiss-keyguard || true
+adb shell input keyevent 82 || true
+echo "jazyk: $(adb shell getprop persist.sys.locale | tr -d '\r')"
 adb shell settings put global window_animation_scale 0 || true
 adb shell settings put system screen_off_timeout 1800000 || true
 # čistý stavový riadok na snímkach (režim ukážky: 9:41, plná batéria a signál)

@@ -23,4 +23,5 @@
     <string name="settings_bio_unavailable">Nejdřív si v telefonu nastav zámek obrazovky, otisk prstu nebo odemknutí obličejem.</string>
     <string name="download_started">Stahuji %1$s…</string>
     <string name="download_failed">Soubor se nepodařilo stáhnout.</string>
+    <string name="download_done">%1$s je ve složce Stažené.</string>
 </resources>

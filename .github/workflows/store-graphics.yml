@@ -1,0 +1,47 @@
+# Grafika do Google Play zo snímok posledného úspešného smoke testu (jazyk emulátora sk-SK).
+name: Grafika do obchodu
+
+on:
+  workflow_run:
+    workflows: ['Android – smoke test']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'ID behu smoke testu (prázdne = posledný beh, ktorý spustil tento workflow)'
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  graphics:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion != 'cancelled'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: smoke-sk-SK
+          path: smoke-out
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Grafika
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.65.1
+          npx playwright install --with-deps chromium
+          node tests/store-graphics.mjs smoke-out/screens store-out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-graphics
+          path: store-out/
+          retention-days: 90

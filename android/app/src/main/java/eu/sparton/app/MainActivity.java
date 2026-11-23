@@ -350,26 +350,16 @@ public class MainActivity extends BridgeActivity {
             } catch (Exception ignored) {}
             return;
         }
-        try {
-            String name = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType);
-            android.app.DownloadManager.Request r = new android.app.DownloadManager.Request(uri)
-                .setMimeType(mimeType)
-                .addRequestHeader("User-Agent", userAgent)
-                .setTitle(name)
-                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, name);
-            String cookies = android.webkit.CookieManager.getInstance().getCookie(url);
-            if (cookies != null) r.addRequestHeader("Cookie", cookies);
-            android.app.DownloadManager dm = getSystemService(android.app.DownloadManager.class);
-            if (dm != null) {
-                dm.enqueue(r);
-                android.widget.Toast.makeText(this, getString(R.string.download_started, name), android.widget.Toast.LENGTH_SHORT).show();
-            }
-        } catch (Exception e) {
-            android.widget.Toast.makeText(this, R.string.download_failed, android.widget.Toast.LENGTH_LONG).show();
-        }
+        String name = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType);
+        android.widget.Toast.makeText(this, getString(R.string.download_started, name), android.widget.Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            boolean ok = Downloads.save(this, url, userAgent, name, mimeType);
+            runOnUiThread(() -> {
+                if (!ok) android.widget.Toast.makeText(this, R.string.download_failed, android.widget.Toast.LENGTH_LONG).show();
+                else android.widget.Toast.makeText(this, getString(R.string.download_done, name), android.widget.Toast.LENGTH_SHORT).show();
+            });
+        }, "sparton-download").start();
     }
-
     // ------------------------------------------------------------ offline
 
     void onOffline(String failed) {

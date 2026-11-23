@@ -28,4 +28,5 @@
     <string name="settings_bio_unavailable">Najprv si v telefóne nastav zámok obrazovky, odtlačok prsta alebo odomknutie tvárou.</string>
     <string name="download_started">Sťahujem %1$s…</string>
     <string name="download_failed">Súbor sa nepodarilo stiahnuť.</string>
+    <string name="download_done">%1$s je v priečinku Stiahnuté.</string>
 </resources>

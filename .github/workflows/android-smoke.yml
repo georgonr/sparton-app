@@ -74,7 +74,7 @@ jobs:
           profile: pixel_7
           ram-size: 3072M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -change-locale ${{ env.LOCALE }}
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: bash tests/smoke.sh
 
       - name: Súhrn
