@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Farby spartON (src/styles.css): --green, --bg, --ink. -->
+    <!-- Farby spartON (src/styles.css): green, bg, ink. -->
     <color name="sparton_green">#168342</color>
     <color name="sparton_green_dark">#116A35</color>
     <color name="sparton_page">#F2F4EF</color>

@@ -21,4 +21,6 @@
     <string name="settings_notifications">Notifications</string>
     <string name="settings_close">Close</string>
     <string name="settings_bio_unavailable">First set up a screen lock, fingerprint or face unlock on your phone.</string>
+    <string name="download_started">Downloading %1$s…</string>
+    <string name="download_failed">The file could not be downloaded.</string>
 </resources>

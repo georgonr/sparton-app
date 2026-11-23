@@ -21,4 +21,6 @@
     <string name="settings_notifications">Upozornění</string>
     <string name="settings_close">Zavřít</string>
     <string name="settings_bio_unavailable">Nejdřív si v telefonu nastav zámek obrazovky, otisk prstu nebo odemknutí obličejem.</string>
+    <string name="download_started">Stahuji %1$s…</string>
+    <string name="download_failed">Soubor se nepodařilo stáhnout.</string>
 </resources>

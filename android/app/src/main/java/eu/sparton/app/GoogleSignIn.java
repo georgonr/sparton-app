@@ -63,22 +63,26 @@ final class GoogleSignIn {
                 ".then(function(j){d(j&&j.nonce?String(j.nonce):'')}).catch(function(){d('')})})()",
             null
         );
-        // bez správ z WebView (veľmi staré verzie) pokračuj bez nonce – server prijme čerstvý token (do 5 min)
+        // bez odpovede (veľmi staré WebView bez správ, sieť) sa tok po 15 s zruší – bez nonce zo servera sa neprihlasuje
         wv.postDelayed(
             () -> {
-                if (running && pending != null && !pending.has("_asked")) onNonce("");
+                if (running && pending != null && !pending.has("_asked")) finish("failed");
             },
-            4000
+            15000
         );
     }
 
     void onNonce(String nonce) {
         if (!running || pending == null || pending.has("_asked")) return;
+        if (nonce == null || nonce.isEmpty()) {
+            finish("failed");
+            return;
+        }
         try {
             pending.put("_asked", true);
         } catch (Exception ignored) {}
         GetSignInWithGoogleOption.Builder ob = new GetSignInWithGoogleOption.Builder(WEB_CLIENT_ID);
-        if (nonce != null && !nonce.isEmpty()) ob.setNonce(nonce);
+        ob.setNonce(nonce);
         GetCredentialRequest req = new GetCredentialRequest.Builder().addCredentialOption(ob.build()).build();
         CredentialManager cm = CredentialManager.create(activity);
         cm.getCredentialAsync(
@@ -109,6 +113,10 @@ final class GoogleSignIn {
     }
 
     private void post(String idToken) {
+        if (!activity.isOnAppPage()) {
+            finish(null);
+            return;
+        }
         try {
             JSONObject b = new JSONObject(pending.toString());
             b.remove("_asked");
@@ -134,7 +142,7 @@ final class GoogleSignIn {
     private void finish(String code) {
         running = false;
         pending = null;
-        if (code == null) return;
+        if (code == null || !activity.isOnAppPage()) return;
         activity
             .getBridge()
             .getWebView()

@@ -32,13 +32,14 @@ public class SpartonWebViewClient extends BridgeWebViewClient {
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         Uri url = request.getUrl();
-        if (Links.isGoogleStart(url)) {
-            activity.googleSignIn().start(url);
-            return true;
-        }
         if (!request.isForMainFrame()) {
             // vnorené rámce (Cloudflare Turnstile, platobné prvky) sa načítajú normálne – Capacitor by ich poslal do prehliadača
             return false;
+        }
+        if (Links.isGoogleStart(url)) {
+            // len z hlavného rámca stránky spartON (nie z vnoreného rámca ani cudzej stránky)
+            if (activity.isOnAppPage()) activity.googleSignIn().start(url);
+            return true;
         }
         if (Links.isAppHost(url)) {
             if (Links.isInAppPath(url.getPath())) return false;
@@ -46,7 +47,8 @@ public class SpartonWebViewClient extends BridgeWebViewClient {
             return true;
         }
         String scheme = url.getScheme();
-        if ("data".equals(scheme) || "blob".equals(scheme) || "about".equals(scheme)) return false;
+        // hlavný rámec appky je vždy https://sparton.eu – data:, blob: a iné schémy sa v ňom nenačítajú
+        if ("data".equals(scheme) || "blob".equals(scheme) || "about".equals(scheme) || "javascript".equals(scheme) || "file".equals(scheme)) return true;
         openExternal(url);
         return true;
     }

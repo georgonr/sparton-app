@@ -80,7 +80,7 @@ final class PushRegistrar {
     /** Po načítaní stránky sparton.eu: zaregistruj, obnov alebo odregistruj zariadenie podľa stavu. */
     void sync(WebView webView) {
         String sess = sessionKey();
-        if (sess == null || inFlight) return;
+        if (sess == null || inFlight || !activity.isOnAppPage()) return;
         String tok = token();
         if (tok == null) {
             ensureToken(() -> activity.runOnUiThread(() -> sync(activity.getBridge().getWebView())));

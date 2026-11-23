@@ -94,6 +94,7 @@ public class MainActivity extends BridgeActivity {
         WebSettings s = wv.getSettings();
         s.setSupportMultipleWindows(false); // target=_blank → rovnaké webview → pravidlá odkazov
         s.setGeolocationEnabled(false);
+        wv.setDownloadListener(this::download);
 
         setupEdgeToEdge(wv);
         setupNativeMessages(wv);
@@ -264,7 +265,16 @@ public class MainActivity extends BridgeActivity {
 
     void publishPushToken(String token) {
         if (bridge == null) return;
-        runOnUiThread(() -> bridge.getWebView().evaluateJavascript("window.__spartonPushToken=" + JSONObject.quote(token) + ";", null));
+        runOnUiThread(() -> {
+            if (isOnAppPage()) bridge.getWebView().evaluateJavascript("window.__spartonPushToken=" + JSONObject.quote(token) + ";", null);
+        });
+    }
+
+    /** Je v hlavnom rámci stránka https://sparton.eu? Len do nej appka vkladá token alebo prihlasovacie údaje. */
+    boolean isOnAppPage() {
+        if (bridge == null) return false;
+        String u = bridge.getWebView().getUrl();
+        return u != null && Links.isAppHost(Uri.parse(u));
     }
 
     GoogleSignIn googleSignIn() {
@@ -326,6 +336,37 @@ public class MainActivity extends BridgeActivity {
                 .setPositiveButton(R.string.bio_offer_yes, (d, w) -> lock.prompt(() -> lock.setEnabled(true)))
                 .setNegativeButton(R.string.bio_offer_no, (d, w) -> lock.setEnabled(false))
                 .show();
+        }
+    }
+
+    // ------------------------------------------------------------ sťahovanie súborov (dokumenty, výpisy, exporty)
+
+    private void download(String url, String userAgent, String contentDisposition, String mimeType, long length) {
+        Uri uri = Uri.parse(url);
+        if (!Links.isAppHost(uri) || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // cudzí súbor alebo Android 9 a starší (bez povolenia úložiska) → systémový prehliadač
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, uri));
+            } catch (Exception ignored) {}
+            return;
+        }
+        try {
+            String name = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType);
+            android.app.DownloadManager.Request r = new android.app.DownloadManager.Request(uri)
+                .setMimeType(mimeType)
+                .addRequestHeader("User-Agent", userAgent)
+                .setTitle(name)
+                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, name);
+            String cookies = android.webkit.CookieManager.getInstance().getCookie(url);
+            if (cookies != null) r.addRequestHeader("Cookie", cookies);
+            android.app.DownloadManager dm = getSystemService(android.app.DownloadManager.class);
+            if (dm != null) {
+                dm.enqueue(r);
+                android.widget.Toast.makeText(this, getString(R.string.download_started, name), android.widget.Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            android.widget.Toast.makeText(this, R.string.download_failed, android.widget.Toast.LENGTH_LONG).show();
         }
     }
 
