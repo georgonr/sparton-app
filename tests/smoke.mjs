@@ -105,6 +105,17 @@ await check('príznak appky v User-Agent a data-native', async () => {
 await check('neprihlásený → prihlasovacia stránka', async () => {
   if (!/\/login/.test(page.url())) throw new Error(page.url())
 })
+await check('bez cookie lišty a bez analytiky v appke', async () => {
+  if (await page.$('[data-testid="cookie-banner"]')) throw new Error('cookie lišta je viditeľná')
+  const consent = await page.evaluate(() => /sparton_consent=2\.000\./.test(document.cookie))
+  if (!consent) throw new Error('súhlas „len nevyhnutné“ nie je nastavený')
+  const trackers = await page.evaluate(() => performance.getEntriesByType('resource').filter((e) => /googletagmanager|google-analytics|facebook|doubleclick/.test(e.name) && e.transferSize > 0).length)
+  if (trackers) throw new Error(`načítaných sledovacích skriptov: ${trackers}`)
+  return 'súhlas len nevyhnutné, 0 sledovacích skriptov'
+})
+await page.evaluate(() => document.activeElement && document.activeElement.blur()).catch(() => {})
+await shell('input keyevent 111').catch(() => {})
+await sleep(1200)
 await screen('prihlasenie')
 
 // --- prihlásenie heslom (účet pre recenziu)

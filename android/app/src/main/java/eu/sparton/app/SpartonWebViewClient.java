@@ -29,6 +29,37 @@ public class SpartonWebViewClient extends BridgeWebViewClient {
         this.activity = activity;
     }
 
+    /** Analytika a reklama (Google Analytics/Tag Manager, Google Ads, Meta) – v appke sa nenačítajú nikdy. */
+    private static final String[] BLOCKED_HOSTS = {
+        "googletagmanager.com",
+        "google-analytics.com",
+        "analytics.google.com",
+        "googleadservices.com",
+        "googlesyndication.com",
+        "doubleclick.net",
+        "connect.facebook.net",
+        "facebook.com",
+        "facebook.net",
+    };
+
+    static boolean isBlocked(Uri url) {
+        String h = url.getHost();
+        if (h == null) return false;
+        h = h.toLowerCase(java.util.Locale.ROOT);
+        for (String b : BLOCKED_HOSTS) {
+            if (h.equals(b) || h.endsWith("." + b)) return true;
+        }
+        return false;
+    }
+
+    @Override
+    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+        if (isBlocked(request.getUrl())) {
+            return new WebResourceResponse("text/plain", "utf-8", 204, "No Content", new java.util.HashMap<>(), new java.io.ByteArrayInputStream(new byte[0]));
+        }
+        return super.shouldInterceptRequest(view, request);
+    }
+
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         Uri url = request.getUrl();

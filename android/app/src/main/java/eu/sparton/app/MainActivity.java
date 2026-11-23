@@ -77,6 +77,7 @@ public class MainActivity extends BridgeActivity {
         SplashScreen splash = SplashScreen.installSplashScreen(this);
         createdAt = SystemClock.elapsedRealtime();
         splash.setKeepOnScreenCondition(() -> !contentReady && SystemClock.elapsedRealtime() - createdAt < 4000);
+        necessaryCookiesOnly();
         super.onCreate(savedInstanceState);
         if (bridge == null || bridge.getWebView() == null) return;
 
@@ -107,6 +108,20 @@ public class MainActivity extends BridgeActivity {
         lock.onColdStart();
         ready = true;
         handleIntent(getIntent());
+    }
+
+    /**
+     * Appka nepoužíva analytické ani marketingové cookies: súhlas „len nevyhnutné“ (formát webu, lib/consent.ts,
+     * verzia 2) sa zapíše pri každom štarte, takže sa cookie lišta webu v appke nezobrazí. Požiadavky na analytiku
+     * a reklamu navyše blokuje SpartonWebViewClient (pre prípad zmeny súhlasu v pätičke).
+     */
+    private static void necessaryCookiesOnly() {
+        try {
+            String day = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(new java.util.Date());
+            android.webkit.CookieManager cm = android.webkit.CookieManager.getInstance();
+            cm.setCookie(Links.ORIGIN, "sparton_consent=2.000." + day + "; Max-Age=31536000; Path=/; Domain=.sparton.eu; Secure; SameSite=Lax");
+            cm.flush();
+        } catch (Exception ignored) {}
     }
 
     // ------------------------------------------------------------ od okraja po okraj
