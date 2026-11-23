@@ -31,7 +31,7 @@ button[disabled]{opacity:.6}
     <path d="M33 9.5a16 16 0 0 1 3 8" stroke="#ff8137" stroke-width="2.6" stroke-linecap="round" fill="none"/>
   </svg>
   <h1 id="h" data-testid="offline-title">Si offline</h1>
-  <p id="p">Bez internetu sa spartON nenačíta. Pripoj sa a skús to znova – nič sa nestratilo.</p>
+  <p id="p">Bez internetu sa spartON nenačíta. Pripoj sa a&nbsp;skús to znova – nič sa nestratilo.</p>
   <button id="b" type="button">Skúsiť znova</button>
   <p class="hint" id="s">Keď sa pripojíš, appka sa načíta sama.</p>
 </main>
@@ -39,7 +39,7 @@ button[disabled]{opacity:.6}
 /* Obrazovka „si offline" appky spartON – servíruje ju appka lokálne, jazyk podľa zariadenia, tyká. */
 (function () {
   var T = {
-    cs: ['Jsi offline', 'Bez internetu se spartON nenačte. Připoj se a zkus to znovu – nic se neztratilo.', 'Zkusit znovu', 'Jakmile se připojíš, aplikace se načte sama.'],
+    cs: ['Jsi offline', 'Bez internetu se spartON nenačte. Připoj se a\u00a0zkus to znovu – nic se neztratilo.', 'Zkusit znovu', 'Jakmile se připojíš, aplikace se načte sama.'],
     en: ['You are offline', 'spartON cannot load without the internet. Connect and try again – nothing has been lost.', 'Try again', 'Once you are back online, the app will load by itself.']
   };
   var l = (navigator.language || 'sk').slice(0, 2).toLowerCase();
