@@ -80,7 +80,7 @@ function smokeDir() {
 async function js(fn, ...args) {
   const id = `${Date.now()}-${++seq}`
   const dir = smokeDir()
-  const body = `const r = await (${fn.toString()})(...__a); return r === undefined ? null : r`
+  const body = `try { const r = await (${fn.toString()})(...__a); return r === undefined ? null : r } catch (e) { return { __err: String(e && e.stack || e) } }`
   const tmp = join(dir, `tmp-${id}`)
   writeFileSync(tmp, JSON.stringify({ id, body, args: { __a: args } }))
   renameSync(tmp, join(dir, `cmd-${String(seq).padStart(6, '0')}-${id}.json`))
@@ -91,6 +91,7 @@ async function js(fn, ...args) {
       const o = JSON.parse(readFileSync(res, 'utf8'))
       rmSync(res, { force: true })
       if (!o.ok) throw new Error(`JS: ${o.error}`)
+      if (o.value && typeof o.value === 'object' && o.value.__err) throw new Error(`JS: ${String(o.value.__err).slice(0, 200)}`)
       return o.value
     }
   }
@@ -345,12 +346,21 @@ if (club) {
   })
 
   // snímky do App Store aj v češtine a angličtine (jazyk účtu cez prepínač v appke, na konci späť SK)
-  for (const [lang, idx] of [['cs', 1], ['en', 2]]) {
+  for (const [lang, idx] of [['cs', 'CZ'], ['en', 'EN']]) {
     await check(`snímky v jazyku ${lang}`, async () => {
       await go(`/app/${club}`)
-      await js((i) => {
-        const g = [...document.querySelectorAll('[role="group"]')].find((x) => x.querySelectorAll('button').length === 3)
-        g.querySelectorAll('button')[i].click()
+      await js(async (lab) => {
+        const btns = () => [...document.querySelectorAll('button')]
+        let b = btns().find((x) => x.textContent.trim() === lab && x.hasAttribute('aria-pressed'))
+        if (!b) {
+          const more = btns().find((x) => /^(Viac|Více|More)$/.test(x.textContent.trim()))
+          if (more) more.click()
+          await new Promise((r) => setTimeout(r, 800))
+          b = btns().find((x) => x.textContent.trim() === lab && x.hasAttribute('aria-pressed'))
+        }
+        if (!b) throw new Error('prepínač jazyka ' + lab + ' sa nenašiel')
+        b.click()
+        return true
       }, idx)
       await sleep(3000)
       const lg = await js(() => document.documentElement.lang)
@@ -365,10 +375,19 @@ if (club) {
   }
   await check('jazyk účtu späť na slovenčinu', async () => {
     await go(`/app/${club}`)
-    await js(() => {
-      const g = [...document.querySelectorAll('[role="group"]')].find((x) => x.querySelectorAll('button').length === 3)
-      g.querySelectorAll('button')[0].click()
-    })
+    await js(async (lab) => {
+        const btns = () => [...document.querySelectorAll('button')]
+        let b = btns().find((x) => x.textContent.trim() === lab && x.hasAttribute('aria-pressed'))
+        if (!b) {
+          const more = btns().find((x) => /^(Viac|Více|More)$/.test(x.textContent.trim()))
+          if (more) more.click()
+          await new Promise((r) => setTimeout(r, 800))
+          b = btns().find((x) => x.textContent.trim() === lab && x.hasAttribute('aria-pressed'))
+        }
+        if (!b) throw new Error('prepínač jazyka ' + lab + ' sa nenašiel')
+        b.click()
+        return true
+      }, 'SK')
     await sleep(3000)
     const lg = await js(() => document.documentElement.lang)
     if (!lg.startsWith('sk')) throw new Error(`jazyk ${lg}`)
@@ -424,6 +443,13 @@ await check('obrazovka „si offline“', async () => {
     execFileSync('sudo', ['pfctl', '-E'], { stdio: 'ignore' })
   } catch {}
   pf(rules)
+  for (const ip of ips) {
+    try {
+      execFileSync('sudo', ['pfctl', '-k', '0.0.0.0/0', '-k', ip], { stdio: 'ignore' })
+      execFileSync('sudo', ['pfctl', '-k', '::/0', '-k', ip], { stdio: 'ignore' })
+    } catch {}
+  }
+  console.log(execFileSync('sudo', ['pfctl', '-a', 'com.apple/sparton', '-s', 'rules'], { encoding: 'utf8' }).trim())
   await sleep(1000)
   await js((u) => {
     location.href = u
