@@ -106,12 +106,25 @@ async function settle(ms = 1500) {
   await sleep(ms)
 }
 async function go(path, ms = 2500) {
-  await js((u) => {
-    setTimeout(() => {
-      location.href = u
-    }, 0)
-  }, ORIGIN + path).catch(() => {})
-  await sleep(1500)
+  const target = ORIGIN + path
+  const want = target.split('#')[0].replace(/\/$/, '')
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await js((u) => {
+      setTimeout(() => {
+        location.href = u
+      }, 0)
+      return true
+    }, target).catch(() => {})
+    for (let i = 0; i < 40; i++) {
+      await sleep(500)
+      const u = await url().catch(() => '')
+      if (u.split('#')[0].replace(/\/$/, '').startsWith(want) && (await js(() => document.readyState).catch(() => '')) === 'complete') {
+        await settle(ms)
+        return
+      }
+    }
+    console.log(`navigácia na ${path} sa nedokončila, opakujem`)
+  }
   await settle(ms)
 }
 async function waitUrl(re, tries = 30) {
@@ -175,6 +188,16 @@ async function blur() {
   await sleep(800)
 }
 
+const ips = [...(await dns.resolve4('sparton.eu').catch(() => [])), ...(await dns.resolve6('sparton.eu').catch(() => []))]
+const pf = (rules) => execFileSync('sudo', ['pfctl', '-a', 'com.apple/sparton', '-f', '-'], { input: rules, stdio: ['pipe', 'ignore', 'ignore'] })
+const NOQUIC = ips.map((ip) => `block return out quick ${ip.includes(':') ? 'inet6' : 'inet'} proto udp from any to ${ip} port 443\n`).join('')
+try {
+  execFileSync('sudo', ['pfctl', '-E'], { stdio: 'ignore' })
+  pf(NOQUIC)
+  console.log('pf: UDP 443 na sparton.eu blokované (HTTP/3 → TCP)')
+} catch (e) {
+  console.log('pf nepodarilo sa nastaviť', e.message)
+}
 console.log('Appium: relácia beží')
 await sleep(6000)
 screen('diagnostika-start')
@@ -394,11 +417,9 @@ await check('zámok Face ID po štarte appky', async () => {
 })
 
 // --- offline (pf blokuje sparton.eu, RST aj pre otvorené spojenia)
-const ips = [...(await dns.resolve4('sparton.eu').catch(() => [])), ...(await dns.resolve6('sparton.eu').catch(() => []))]
-const pf = (rules) => execFileSync('sudo', ['pfctl', '-a', 'com.apple/sparton', '-f', '-'], { input: rules, stdio: ['pipe', 'ignore', 'ignore'] })
 await check('obrazovka „si offline“', async () => {
   if (!ips.length) throw new Error('DNS sparton.eu')
-  const rules = ips.map((ip) => `block return out quick ${ip.includes(':') ? 'inet6' : 'inet'} from any to ${ip}\n`).join('')
+  const rules = NOQUIC + ips.map((ip) => `block return out quick ${ip.includes(':') ? 'inet6' : 'inet'} from any to ${ip}\n`).join('')
   try {
     execFileSync('sudo', ['pfctl', '-E'], { stdio: 'ignore' })
   } catch {}
@@ -417,7 +438,7 @@ await check('obrazovka „si offline“', async () => {
   return t
 })
 await check('„Skúsiť znova“ po pripojení načíta stránku', async () => {
-  pf('')
+  pf(NOQUIC)
   await sleep(1500)
   await js(() => document.getElementById('b')?.click())
   const u = await waitUrl(/^https:\/\/sparton\.eu\/app/, 20)
