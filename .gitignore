@@ -17,6 +17,9 @@
 /scripts/*
 !/scripts/check-public.mjs
 !/scripts/gen-icons.mjs
+!/store/
+/store/*
+!/store/console-answers.md
 
 # nikdy nie kľúče, heslá ani konfigurácia Firebase (do zostavenia ich dáva GitHub Actions zo secrets)
 *.jks
