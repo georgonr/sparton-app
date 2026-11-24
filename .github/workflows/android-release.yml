@@ -68,6 +68,12 @@ jobs:
       - name: Overenie podpisu, verzie a povolení
         run: |
           set -euo pipefail
+          # verzia z build.gradle (jediný zdroj pravdy)
+          VC=$(sed -n 's/^[[:space:]]*versionCode \([0-9]\+\).*/\1/p' android/app/build.gradle)
+          VN=$(sed -n 's/^[[:space:]]*versionName "\([^"]\+\)".*/\1/p' android/app/build.gradle)
+          test -n "$VC" && test -n "$VN"
+          echo "VC=$VC" >> "$GITHUB_ENV"
+          echo "VN=$VN" >> "$GITHUB_ENV"
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           AAB=android/app/build/outputs/bundle/release/app-release.aab
           APK=android/app/build/outputs/apk/release/app-release.apk
@@ -80,24 +86,24 @@ jobs:
           [ "$AAB_SHA" = "$UPLOAD_SHA256" ] || { echo "::error::AAB nie je podpísaný upload kľúčom"; exit 1; }
           "$BT/aapt2" dump badging "$APK" > badging.txt
           grep -E "^package:|^sdkVersion|^targetSdkVersion|^application-label:|uses-permission" badging.txt | tee manifest.txt
-          grep -q "name='eu.sparton.app' versionCode='1' versionName='1.0.0'" badging.txt
+          grep -q "name='eu.sparton.app' versionCode='$VC' versionName='$VN'" badging.txt
           grep -q "targetSdkVersion:'36'" badging.txt
           if grep -E "AD_ID|READ_EXTERNAL_STORAGE|READ_MEDIA_IMAGES|ACCESS_FINE_LOCATION|RECORD_AUDIO" badging.txt; then echo "::error::nečakané povolenie"; exit 1; fi
           {
-            echo "### spartON Android 1.0.0 (versionCode 1)"
+            echo "### spartON Android $VN (versionCode $VC)"
             echo "- podpis upload kľúča SHA-256 \`$APK_SHA\` ✅"
             echo "- AAB $(du -h "$AAB" | cut -f1), APK $(du -h "$APK" | cut -f1)"
             echo '```'; cat manifest.txt; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           mkdir -p out
-          cp "$AAB" out/sparton-1.0.0-1.aab
-          cp "$APK" out/sparton-1.0.0-1.apk
+          cp "$AAB" "out/sparton-$VN-$VC.aab"
+          cp "$APK" "out/sparton-$VN-$VC.apk"
           cp manifest.txt out/manifest.txt
-          (cd out && sha256sum sparton-1.0.0-1.aab sparton-1.0.0-1.apk > SHA256SUMS.txt)
+          (cd out && sha256sum "sparton-$VN-$VC.aab" "sparton-$VN-$VC.apk" > SHA256SUMS.txt)
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sparton-android-1.0.0-1
+          name: sparton-android-${{ env.VN }}-${{ env.VC }}
           path: out/
           retention-days: 90
 
