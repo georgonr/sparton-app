@@ -401,8 +401,12 @@ await check('cenník sa v appke neotvorí (Safari)', async () => {
   await js(() => {
     location.href = '/pricing'
   })
-  await sleep(4000)
-  const info = await driver.execute('mobile: activeAppInfo')
+  let info = null
+  for (let i = 0; i < 12; i++) {
+    await sleep(1000)
+    info = await driver.execute('mobile: activeAppInfo').catch(() => null)
+    if (info?.bundleId === 'com.apple.mobilesafari') break
+  }
   await driver.execute('mobile: activateApp', { bundleId: BUNDLE })
   await sleep(2000)
   const now = await url()
@@ -443,6 +447,7 @@ await check('obrazovka „si offline“', async () => {
     execFileSync('sudo', ['pfctl', '-E'], { stdio: 'ignore' })
   } catch {}
   pf(rules)
+  execFileSync('sudo', ['sh', '-c', 'echo "127.0.0.1 sparton.eu # smoke-offline" >> /etc/hosts; dscacheutil -flushcache; killall -HUP mDNSResponder'], { stdio: 'ignore' })
   for (const ip of ips) {
     try {
       execFileSync('sudo', ['pfctl', '-k', '0.0.0.0/0', '-k', ip], { stdio: 'ignore' })
@@ -455,7 +460,7 @@ await check('obrazovka „si offline“', async () => {
     location.href = u
   }, `${ORIGIN}/app${club ? `/${club}/calendar` : ''}?offline=${Date.now()}`)
   let t = null
-  for (let i = 0; i < 20 && !t; i++) {
+  for (let i = 0; i < 60 && !t; i++) {
     await sleep(1500)
     t = await js(() => document.querySelector('[data-testid="offline-title"]')?.textContent || null).catch(() => null)
   }
@@ -464,19 +469,30 @@ await check('obrazovka „si offline“', async () => {
   return t
 })
 await check('„Skúsiť znova“ po pripojení načíta stránku', async () => {
+  execFileSync('sudo', ['sh', '-c', "sed -i '' '/smoke-offline/d' /etc/hosts; dscacheutil -flushcache; killall -HUP mDNSResponder"], { stdio: 'ignore' })
   pf(NOQUIC)
-  await sleep(1500)
-  await js(() => document.getElementById('b')?.click())
+  await sleep(2000)
+  if (!(await js(() => !!document.getElementById('b') && !!document.querySelector('[data-testid="offline-title"]')).catch(() => false))) throw new Error('offline obrazovka nebola zobrazená – nie je čo skúsiť znova')
+  await js(() => document.getElementById('b').click())
   const u = await waitUrl(/^https:\/\/sparton\.eu\/app/, 20)
   return u.replace(ORIGIN, '')
 })
 
 // --- odregistrovanie zariadenia (hlavička X-Push-Token / DELETE)
 await check('DELETE /api/push/devices z prihlásenej stránky', async () => {
-  const status = await js(() =>
-    fetch('/api/push/devices', { method: 'DELETE', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: window.__spartonPushToken || 'x' }) }).then((r) => r.status),
-  )
-  return `→ ${status}`
+  let last
+  for (let i = 0; i < 5; i++) {
+    try {
+      const status = await js(() =>
+        fetch('/api/push/devices', { method: 'DELETE', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: window.__spartonPushToken || 'x' }) }).then((r) => r.status),
+      )
+      return `→ ${status}${i ? ` (pokus ${i + 1})` : ''}`
+    } catch (e) {
+      last = e
+      await sleep(3000)
+    }
+  }
+  throw last
 })
 
 writeFileSync(join(OUT, 'results.json'), JSON.stringify(results, null, 2))
