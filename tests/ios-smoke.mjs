@@ -5,7 +5,7 @@
 // Heslá idú len do polí formulára – nikam sa nevypisujú (Appium log sa neukladá ako artefakt).
 import { remote } from 'webdriverio'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, renameSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { promises as dns } from 'node:dns'
 
@@ -25,7 +25,7 @@ function record(name, ok, detail = '') {
 class Skip extends Error {}
 async function check(name, fn) {
   try {
-    const d = await fn()
+    const d = await Promise.race([fn(), sleep(150_000).then(() => Promise.reject(new Error('časový limit kroku 150 s')))])
     record(name, true, typeof d === 'string' ? d : '')
   } catch (e) {
     if (e instanceof Skip) record(name, null, e.message)
@@ -67,28 +67,36 @@ const driver = await remote({
   },
 })
 
-// --- pomocníci: kontexty (natívny / webview)
-async function web() {
-  for (let i = 0; i < 30; i++) {
-    const ctx = await driver.getContexts().catch(() => [])
-    const w = ctx.map((c) => (typeof c === 'string' ? c : c.id)).filter((c) => c.startsWith('WEBVIEW'))
-    if (w.length) {
-      await driver.switchContext(w[w.length - 1])
-      return
-    }
-    await sleep(1500)
-  }
-  throw new Error('webview appky sa nenašlo')
-}
+// --- pomocníci: webview cez testovací most ladiaceho zostavenia (Documents/smoke v kontajneri appky),
+// natívne dialógy a Face ID cez Appium. Web Inspector (kontext WEBVIEW) sa v simulátore iOS 26 neukázal.
 const native = () => driver.switchContext('NATIVE_APP')
-const url = async () => {
-  await web()
-  return driver.getUrl()
+let seq = 0
+function smokeDir() {
+  const c = execFileSync('xcrun', ['simctl', 'get_app_container', UDID, BUNDLE, 'data'], { encoding: 'utf8' }).trim()
+  const d = join(c, 'Documents', 'smoke')
+  mkdirSync(d, { recursive: true })
+  return d
 }
-const js = async (fn, ...args) => {
-  await web()
-  return driver.execute(fn, ...args)
+async function js(fn, ...args) {
+  const id = `${Date.now()}-${++seq}`
+  const dir = smokeDir()
+  const body = `const r = await (${fn.toString()})(...__a); return r === undefined ? null : r`
+  const tmp = join(dir, `tmp-${id}`)
+  writeFileSync(tmp, JSON.stringify({ id, body, args: { __a: args } }))
+  renameSync(tmp, join(dir, `cmd-${String(seq).padStart(6, '0')}-${id}.json`))
+  const res = join(dir, `res-${id}.json`)
+  for (let i = 0; i < 120; i++) {
+    await sleep(250)
+    if (existsSync(res)) {
+      const o = JSON.parse(readFileSync(res, 'utf8'))
+      rmSync(res, { force: true })
+      if (!o.ok) throw new Error(`JS: ${o.error}`)
+      return o.value
+    }
+  }
+  throw new Error('appka neodpovedá (testovací most)')
 }
+const url = () => js(() => location.href)
 async function settle(ms = 1500) {
   for (let i = 0; i < 40; i++) {
     const st = await js(() => document.readyState).catch(() => '')
@@ -99,8 +107,10 @@ async function settle(ms = 1500) {
 }
 async function go(path, ms = 2500) {
   await js((u) => {
-    location.href = u
-  }, ORIGIN + path)
+    setTimeout(() => {
+      location.href = u
+    }, 0)
+  }, ORIGIN + path).catch(() => {})
   await sleep(1500)
   await settle(ms)
 }
@@ -111,6 +121,14 @@ async function waitUrl(re, tries = 30) {
     await sleep(1500)
   }
   throw new Error(`URL ${await url().catch(() => '?')}`)
+}
+async function waitSel(sel, ms = 20_000) {
+  const end = Date.now() + ms
+  while (Date.now() < end) {
+    if (await js((s) => !!document.querySelector(s), sel).catch(() => false)) return
+    await sleep(700)
+  }
+  throw new Error(`chýba ${sel}`)
 }
 async function tapNative(labels, timeout = 15_000) {
   await native()
@@ -134,12 +152,23 @@ async function nativeExists(id) {
 }
 async function login(email, password) {
   await go('/login', 1500)
-  await web()
-  const e = await driver.$('input[name="email"]')
-  await e.waitForExist({ timeout: 20_000 })
-  await e.setValue(email)
-  await (await driver.$('input[name="password"]')).setValue(password)
-  await (await driver.$('button[type="submit"]')).click()
+  await waitSel('input[name="email"]')
+  // React: hodnota cez natívny setter + udalosť input; potom odoslanie formulára tlačidlom
+  await js(
+    (e, p) => {
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+      for (const [n, v] of [['email', e], ['password', p]]) {
+        const el = document.querySelector(`input[name="${n}"]`)
+        set.call(el, v)
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        el.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      setTimeout(() => document.querySelector('button[type="submit"]').click(), 300)
+      return true
+    },
+    email,
+    password,
+  )
 }
 async function blur() {
   await js(() => document.activeElement && document.activeElement.blur()).catch(() => {})
@@ -147,6 +176,8 @@ async function blur() {
 }
 
 console.log('Appium: relácia beží')
+await sleep(6000)
+screen('diagnostika-start')
 // --- Face ID v simulátore zapnuté (ponuka po prihlásení, zámok pri štarte)
 await driver.execute('mobile: enrollBiometric', { isEnabled: true }).catch((e) => console.log('enrollBiometric', e.message))
 await sleep(2000)
@@ -280,12 +311,12 @@ const SCREENS = [
 if (club) {
   for (const [p, n] of SCREENS) await visit(`/app/${club}${p}`, n)
   await visit(`/app/${club}/settings/subscription`, 'predplatne-v-appke', async () => {
-    await (await driver.$('[data-testid="native-billing-web"]')).waitForExist({ timeout: 15_000 })
+    await waitSel('[data-testid="native-billing-web"]', 15_000)
     const body = await js(() => document.body.innerText)
     if (/Zaplatiť kartou|Objednať|€\s*\/\s*(mes|rok)/i.test(body)) throw new Error('na stránke predplatného je nákup')
   })
   await visit(`/app/${club}/settings/credits`, 'kredity-v-appke', async () => {
-    await (await driver.$('[data-testid="native-billing-web"]')).waitForExist({ timeout: 15_000 })
+    await waitSel('[data-testid="native-billing-web"]', 15_000)
     const body = await js(() => document.body.innerText)
     if (/Dokúpiť kredity|Kúpiť kredity/i.test(body)) throw new Error('výzva na nákup kreditov')
   })

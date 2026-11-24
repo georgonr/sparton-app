@@ -56,7 +56,47 @@ final class SpartonBridgeViewController: CAPBridgeViewController, WKScriptMessag
             DispatchQueue.main.async { self?.host?.routeChanged(w.url) }
         }
         watchNetwork()
+        #if DEBUG
+        startSmokeHarness()
+        #endif
     }
+
+    #if DEBUG
+    /// LEN ladiace zostavenie (smoke test v GitHub Actions): príkazy JS zo súborov Documents/smoke/cmd-*.json
+    /// (zapisuje ich test do kontajnera appky v simulátore) → výsledok do res-<id>.json. Vo vydaní tento kód nie je.
+    private var smokeTimer: Timer?
+    private func startSmokeHarness() {
+        let fm = FileManager.default
+        let dir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("smoke", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        var busy = false
+        smokeTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+            guard let self = self, !busy, let wv = self.webView,
+                  let f = (try? fm.contentsOfDirectory(atPath: dir.path))?.filter({ $0.hasPrefix("cmd-") && $0.hasSuffix(".json") }).sorted().first else { return }
+            let file = dir.appendingPathComponent(f)
+            let data = try? Data(contentsOf: file)
+            try? fm.removeItem(at: file)
+            guard let d = data, let o = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any],
+                  let id = o["id"] as? String, let body = o["body"] as? String else { return }
+            busy = true
+            wv.callAsyncJavaScript(body, arguments: o["args"] as? [String: Any] ?? [:], in: nil, in: .page) { result in
+                var out: [String: Any] = ["id": id]
+                switch result {
+                case .success(let v):
+                    out["ok"] = true
+                    out["value"] = JSONSerialization.isValidJSONObject(["v": v]) ? v : String(describing: v)
+                case .failure(let e):
+                    out["ok"] = false
+                    out["error"] = e.localizedDescription
+                }
+                if let j = try? JSONSerialization.data(withJSONObject: out) {
+                    try? j.write(to: dir.appendingPathComponent("res-\(id).json"), options: .atomic)
+                }
+                busy = false
+            }
+        }
+    }
+    #endif
 
     /// Okno appky (spartonNative) a obal fetch: pri odhlásení server odregistruje zariadenie podľa X-Push-Token.
     static let startScript = """
