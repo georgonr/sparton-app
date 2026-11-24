@@ -104,11 +104,26 @@ jobs:
           set -euo pipefail
           npm install --no-save --no-audit --no-fund appium@3 webdriverio@9 playwright@1.65.1
           npx appium driver install xcuitest
+
+      - name: WebDriverAgent (zostavenie vopred, viditeľný výstup)
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+          WDA=$(find "$HOME/.appium" -name WebDriverAgent.xcodeproj -path '*appium-xcuitest-driver*' | head -1)
+          echo "WDA: $WDA"
+          xcodebuild -project "$WDA" -scheme WebDriverAgentRunner -destination "id=$UDID" \
+            -derivedDataPath "$RUNNER_TEMP/wda" CODE_SIGNING_ALLOWED=NO -quiet build-for-testing
+          ls "$RUNNER_TEMP/wda/Build/Products/"
+          echo "WDA_DD=$RUNNER_TEMP/wda" >> "$GITHUB_ENV"
+
+      - name: Appium server
+        run: |
           npx appium --address 127.0.0.1 --port 4723 --log-level info --log "$RUNNER_TEMP/appium.log" > /dev/null 2>&1 &
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:4723/status > /dev/null && break; sleep 2; done
           curl -sf http://127.0.0.1:4723/status > /dev/null && echo "Appium beží"
 
       - name: Smoke test
+        timeout-minutes: 35
         env:
           REVIEW_EMAIL: ${{ secrets.REVIEW_ADMIN_EMAIL }}
           REVIEW_PASSWORD: ${{ secrets.REVIEW_ADMIN_PASSWORD }}
@@ -129,7 +144,7 @@ jobs:
         run: |
           cat smoke-out/summary.md >> "$GITHUB_STEP_SUMMARY" || true
           # Appium log obsahuje vstupy formulára – neukladá sa; do výstupu len chyby (GitHub maskuje secrets)
-          grep -E 'Error|error:' "$RUNNER_TEMP/appium.log" | grep -viE 'password|heslo|setValue|sendKeys|execute' | tail -60 || true
+          grep -E 'Error|error|fail|WDA|WebDriverAgent|context|Session' "$RUNNER_TEMP/appium.log" | grep -viE 'password|heslo|setValue|sendKeys|/execute|args:' | tail -80 || true
           xcrun simctl spawn "$UDID" log show --last 20m --style compact --predicate 'process == "App"' 2>/dev/null | grep -viE 'password|token' | tail -200 > smoke-out/app-log.txt || true
           rm -f "$RUNNER_TEMP/appium.log"
 

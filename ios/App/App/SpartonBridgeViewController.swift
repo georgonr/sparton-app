@@ -100,8 +100,14 @@ final class SpartonBridgeViewController: CAPBridgeViewController, WKScriptMessag
 
     /// Rozhodnutie pre navigáciu; nil = nechaj na Capacitor.
     fileprivate func decide(_ action: WKNavigationAction) -> WKNavigationActionPolicy? {
-        if #available(iOS 14.5, *), action.shouldPerformDownload { return .download }
         guard let url = action.request.url else { return .cancel }
+        if #available(iOS 14.5, *), action.shouldPerformDownload {
+            // <a download> len zo stránky sparton.eu v hlavnom rámci: súbor zo sparton.eu alebo blob: tej istej stránky
+            let fromApp = action.sourceFrame.isMainFrame && action.sourceFrame.securityOrigin.protocol == "https"
+                && action.sourceFrame.securityOrigin.host.lowercased() == Links.host && Links.isAppHost(webView?.url)
+            let target = Links.isAppHost(url) || (url.scheme?.lowercased() == "blob" && url.absoluteString.hasPrefix("blob:" + Links.origin + "/"))
+            return fromApp && target ? .download : .cancel
+        }
         let main = action.targetFrame?.isMainFrame ?? true
         // vnorené rámce (Cloudflare Turnstile, platobné prvky) sa načítajú normálne
         if !main { return .allow }
@@ -302,8 +308,16 @@ final class Downloads: NSObject, WKDownloadDelegate {
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Downloads", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let safe = suggestedFilename.replacingOccurrences(of: "/", with: "_")
-        let dest = dir.appendingPathComponent(safe.isEmpty ? "sparton" : safe)
+        // len názov súboru (bez ciest), bez riadiacich znakov; „.“, „..“ a prázdny názov → sparton
+        var name = (suggestedFilename as NSString).lastPathComponent
+            .components(separatedBy: CharacterSet(charactersIn: "/\\:").union(.controlCharacters)).joined(separator: "_")
+            .trimmingCharacters(in: .whitespaces)
+        if name.isEmpty || name == "." || name == ".." || name.hasPrefix(".") { name = "sparton" + name }
+        let dest = dir.appendingPathComponent(String(name.prefix(180)))
+        guard dest.standardizedFileURL.deletingLastPathComponent().path == dir.standardizedFileURL.path else {
+            completionHandler(nil)
+            return
+        }
         try? FileManager.default.removeItem(at: dest)
         files[ObjectIdentifier(download)] = dest
         completionHandler(dest)

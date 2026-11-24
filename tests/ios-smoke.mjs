@@ -40,12 +40,16 @@ function screen(name) {
   return file
 }
 
+console.log('Appium: vytváram reláciu (simulátor, appka, WebDriverAgent)…')
 const driver = await remote({
   hostname: '127.0.0.1',
   port: 4723,
   logLevel: 'error',
-  connectionRetryTimeout: 900_000,
+  connectionRetryTimeout: 420_000,
+  connectionRetryCount: 1,
   capabilities: {
+    ...(process.env.WDA_DD ? { 'appium:usePrebuiltWDA': true, 'appium:derivedDataPath': process.env.WDA_DD } : {}),
+    'appium:showXcodeLog': true,
     platformName: 'iOS',
     'appium:automationName': 'XCUITest',
     'appium:udid': UDID,
@@ -142,6 +146,7 @@ async function blur() {
   await sleep(800)
 }
 
+console.log('Appium: relácia beží')
 // --- Face ID v simulátore zapnuté (ponuka po prihlásení, zámok pri štarte)
 await driver.execute('mobile: enrollBiometric', { isEnabled: true }).catch((e) => console.log('enrollBiometric', e.message))
 await sleep(2000)
