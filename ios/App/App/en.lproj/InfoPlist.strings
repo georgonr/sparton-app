@@ -1,0 +1,6 @@
+/* Permission texts and shortcut (EN, short and truthful) */
+"CFBundleDisplayName" = "spartON";
+"NSCameraUsageDescription" = "Use the camera when you want to take a photo and upload it to spartON, for example from training.";
+"NSPhotoLibraryUsageDescription" = "Only the photos you pick yourself are uploaded to spartON.";
+"NSFaceIDUsageDescription" = "Face ID unlocks the spartON app. Your face data stays on your phone.";
+"shortcut.settings" = "App settings";

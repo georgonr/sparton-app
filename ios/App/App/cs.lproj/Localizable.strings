@@ -1,0 +1,17 @@
+/* Nativní texty aplikace spartON (CS, tyká) */
+"lock.title" = "spartON je zamčený";
+"lock.unlock" = "Odemknout";
+"bio.passcode" = "kód telefonu";
+"bio.cancel" = "Zrušit";
+"bio.reason" = "Odemkni aplikaci spartON";
+"bio.offer.title" = "Zamykat aplikaci přes %@?";
+"bio.offer.text" = "Při otevření aplikace se ověříš přes %@. Údaje zůstávají v tvém telefonu. Změníš to podržením ikony spartON → Nastavení aplikace.";
+"bio.offer.yes" = "Zapnout";
+"bio.offer.no" = "Teď ne";
+"settings.title" = "Nastavení aplikace";
+"settings.bio.on" = "Zapnout zámek přes %@";
+"settings.bio.off" = "Vypnout zámek přes %@";
+"settings.bio.unavailable" = "Nejdřív si v telefonu nastav Face ID, Touch ID nebo kód.";
+"settings.notifications" = "Upozornění";
+"settings.close" = "Zavřít";
+"download.failed" = "Soubor se nepodařilo stáhnout. Zkus to znovu.";

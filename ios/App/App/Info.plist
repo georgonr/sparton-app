@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CAPACITOR_DEBUG</key>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>sk</string>
@@ -13,7 +13,7 @@
 		<string>en</string>
 	</array>
 	<key>CFBundleDisplayName</key>
-        <string>spartON</string>
+	<string>spartON</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -33,26 +33,22 @@
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
-    <false/>
-    <key>UISceneConfigurations</key>
-    <dict>
-      <key>UIWindowSceneSessionRoleApplication</key>
-      <array>
-        <dict>
-            <key>UISceneConfigurationName</key>
-            <string>Default Configuration</string>
-            <key>UISceneDelegateClassName</key>
-            <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
-            <key>UISceneStoryboardFile</key>
-            <string>Main</string>
-        </dict>
-      </array>
-    </dict>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
 	</dict>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -63,19 +59,42 @@
 				<string>eu.sparton.app</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google-signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(GOOGLE_IOS_REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
 	</array>
+	<key>GIDClientID</key>
+	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 	<key>WKAppBoundDomains</key>
 	<array>
 		<string>sparton.eu</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Fotoaparát použijeme len vtedy, keď sa rozhodneš odfotiť a nahrať fotku do spartON (napr. z tréningu alebo zápasu).</string>
+	<string>Fotoaparát použiješ, keď chceš odfotiť a nahrať fotku do spartON, napríklad z tréningu.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Prístup k fotkám použijeme len na výber fotiek, ktoré sa rozhodneš nahrať do spartON.</string>
+	<string>Do spartON sa nahrajú len fotky, ktoré sám vyberieš.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Face ID použijeme na odomknutie appky spartON. Údaje ostávajú v tvojom zariadení.</string>
+	<string>Face ID odomyká appku spartON. Údaje tváre ostávajú v tvojom telefóne.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>eu.sparton.app.settings</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>shortcut.settings</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>gearshape</string>
+		</dict>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
@@ -87,13 +106,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>

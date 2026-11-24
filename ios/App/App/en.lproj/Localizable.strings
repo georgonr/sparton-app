@@ -1,0 +1,17 @@
+/* Native texts of the spartON app (EN) */
+"lock.title" = "spartON is locked";
+"lock.unlock" = "Unlock";
+"bio.passcode" = "your passcode";
+"bio.cancel" = "Cancel";
+"bio.reason" = "Unlock the spartON app";
+"bio.offer.title" = "Lock the app with %@?";
+"bio.offer.text" = "When you open the app, you confirm it's you with %@. The data stays on your phone. Change it by holding the spartON icon → App settings.";
+"bio.offer.yes" = "Turn on";
+"bio.offer.no" = "Not now";
+"settings.title" = "App settings";
+"settings.bio.on" = "Turn on %@ lock";
+"settings.bio.off" = "Turn off %@ lock";
+"settings.bio.unavailable" = "First set up Face ID, Touch ID or a passcode on your phone.";
+"settings.notifications" = "Notifications";
+"settings.close" = "Close";
+"download.failed" = "The file couldn't be downloaded. Try again.";

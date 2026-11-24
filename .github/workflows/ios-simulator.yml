@@ -1,0 +1,157 @@
+# iOS appka spartON – zostavenie pre simulátor BEZ PODPISU (Apple Developer účet ešte nie je schválený),
+# smoke test na iOS simulátore (Appium XCUITest + webview cez Web Inspector) a snímky do App Store (iPhone 6,9").
+# Štandardný runner macos-26 (Xcode 26, iOS 26 SDK) – nie väčší.
+name: iOS – simulátor a smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'ios/**']
+    paths: ['ios/**', 'www/**', 'capacitor.config.json', 'tests/ios-*.mjs', 'tests/store-graphics-ios.mjs', '.github/workflows/ios-simulator.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-simulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      GOOGLE_IOS_CLIENT_ID: ${{ vars.GOOGLE_IOS_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes | grep -i ios || true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Závislosti a synchronizácia Capacitor
+        env:
+          GSI: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          set -euo pipefail
+          npm ci
+          npx cap sync ios
+          if [ -n "$GSI" ]; then echo "$GSI" | base64 -d > ios/App/App/GoogleService-Info.plist; echo "Firebase: áno"; else echo "Firebase: nie (secret IOS_GOOGLE_SERVICE_INFO_PLIST_B64 chýba)"; fi
+
+      - name: Google iOS klient (verejné ID, voliteľné)
+        run: |
+          if [ -n "$GOOGLE_IOS_CLIENT_ID" ]; then
+            REV=$(echo "$GOOGLE_IOS_CLIENT_ID" | awk -F. '{for(i=NF;i>0;i--) printf "%s%s",$i,(i>1?".":"")}')
+            echo "GOOGLE_IOS_REVERSED_CLIENT_ID=$REV" >> "$GITHUB_ENV"
+          else
+            echo "GOOGLE_IOS_REVERSED_CLIENT_ID=eu.sparton.app.google-unset" >> "$GITHUB_ENV"
+          fi
+
+      - name: Zostavenie Release pre simulátor (kontrola kódu vydania)
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/rel \
+            CODE_SIGNING_ALLOWED=NO GOOGLE_IOS_CLIENT_ID="$GOOGLE_IOS_CLIENT_ID" GOOGLE_IOS_REVERSED_CLIENT_ID="$GOOGLE_IOS_REVERSED_CLIENT_ID" \
+            -quiet build
+
+      - name: Zostavenie Debug pre simulátor (smoke test)
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dbg \
+            CODE_SIGNING_ALLOWED=NO GOOGLE_IOS_CLIENT_ID="$GOOGLE_IOS_CLIENT_ID" GOOGLE_IOS_REVERSED_CLIENT_ID="$GOOGLE_IOS_REVERSED_CLIENT_ID" \
+            -quiet build
+          APP=$(find build/dbg/Build/Products/Debug-iphonesimulator -maxdepth 1 -name 'App.app' | head -1)
+          echo "APP=$PWD/$APP" >> "$GITHUB_ENV"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
+          ls "$APP" | grep -E 'PrivacyInfo|lproj|GoogleService' || true
+          rm -f ios/App/App/GoogleService-Info.plist
+
+      - name: Kontrola balíka (Info.plist, privacy manifest, ikona bez alfa)
+        run: |
+          set -euo pipefail
+          A=$(find build/rel/Build/Products/Release-iphonesimulator -maxdepth 1 -name 'App.app' | head -1)
+          plutil -lint "$A/Info.plist" "$A/PrivacyInfo.xcprivacy"
+          for k in NSCameraUsageDescription NSPhotoLibraryUsageDescription NSFaceIDUsageDescription ITSAppUsesNonExemptEncryption; do
+            printf '%s: ' "$k"; /usr/libexec/PlistBuddy -c "Print :$k" "$A/Info.plist"
+          done
+          for l in sk cs en; do test -f "$A/$l.lproj/InfoPlist.strings" && echo "$l.lproj OK"; done
+          sips -g hasAlpha ios/App/App/Assets.xcassets/AppIcon.appiconset/*.png | tee /dev/stderr | grep -q 'hasAlpha: no'
+
+      - name: Simulátor iPhone 6,9"
+        run: |
+          set -euo pipefail
+          RT=$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; r=[x for x in json.load(sys.stdin)["runtimes"] if x["platform"]=="iOS" and x["isAvailable"]]; r.sort(key=lambda x:[int(p) for p in x["version"].split(".")]); print(r[-1]["identifier"])')
+          for DT in "iPhone 17 Pro Max" "iPhone 16 Pro Max"; do
+            if xcrun simctl list devicetypes | grep -q "^$DT ("; then break; fi
+          done
+          UDID=$(xcrun simctl create sparton "$DT" "$RT")
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          echo "$DT / $RT / $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+
+      - name: Appium (XCUITest) a WebdriverIO
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-audit --no-fund appium@3 webdriverio@9 playwright@1.65.1
+          npx appium driver install xcuitest
+          npx appium --address 127.0.0.1 --port 4723 --log-level info --log "$RUNNER_TEMP/appium.log" > /dev/null 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4723/status > /dev/null && break; sleep 2; done
+          curl -sf http://127.0.0.1:4723/status > /dev/null && echo "Appium beží"
+
+      - name: Smoke test
+        env:
+          REVIEW_EMAIL: ${{ secrets.REVIEW_ADMIN_EMAIL }}
+          REVIEW_PASSWORD: ${{ secrets.REVIEW_ADMIN_PASSWORD }}
+          CHILD_EMAIL: ${{ secrets.DEMO_CHILD_EMAIL }}
+          CHILD_PASSWORD: ${{ secrets.DEMO_CHILD_PASSWORD }}
+          OUT: smoke-out
+        run: node tests/ios-smoke.mjs
+
+      - name: Snímky do App Store (1320×2868)
+        if: always()
+        run: |
+          npx playwright install chromium
+          node tests/store-graphics-ios.mjs smoke-out/screens store-ios || true
+          for f in store-ios/iphone-6.9/*/*.jpg; do sips -g pixelWidth -g pixelHeight -g hasAlpha "$f" | tr '\n' ' '; echo; done | head -40
+
+      - name: Súhrn a záznam (bez hesiel)
+        if: always()
+        run: |
+          cat smoke-out/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+          # Appium log obsahuje vstupy formulára – neukladá sa; do výstupu len chyby (GitHub maskuje secrets)
+          grep -E 'Error|error:' "$RUNNER_TEMP/appium.log" | grep -viE 'password|heslo|setValue|sendKeys|execute' | tail -60 || true
+          xcrun simctl spawn "$UDID" log show --last 20m --style compact --predicate 'process == "App"' 2>/dev/null | grep -viE 'password|token' | tail -200 > smoke-out/app-log.txt || true
+          rm -f "$RUNNER_TEMP/appium.log"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-smoke
+          path: |
+            smoke-out/
+            store-ios/
+          retention-days: 30
+
+      - name: Balík pre simulátor (artefakt)
+        if: always()
+        run: |
+          A=$(find build/rel/Build/Products/Release-iphonesimulator -maxdepth 1 -name 'App.app' | head -1)
+          [ -n "$A" ] && ditto -c -k --keepParent "$A" sparton-ios-simulator-release.zip || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sparton-ios-simulator
+          path: sparton-ios-simulator-release.zip
+          if-no-files-found: ignore
+          retention-days: 30

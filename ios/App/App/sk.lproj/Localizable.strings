@@ -1,0 +1,17 @@
+/* Natívne texty appky spartON (SK, tyká) */
+"lock.title" = "spartON je zamknutý";
+"lock.unlock" = "Odomknúť";
+"bio.passcode" = "kód telefónu";
+"bio.cancel" = "Zrušiť";
+"bio.reason" = "Odomkni appku spartON";
+"bio.offer.title" = "Zamykať appku cez %@?";
+"bio.offer.text" = "Pri otvorení appky sa overíš cez %@. Údaje ostávajú v tvojom telefóne. Zmeníš to podržaním ikony spartON → Nastavenia appky.";
+"bio.offer.yes" = "Zapnúť";
+"bio.offer.no" = "Teraz nie";
+"settings.title" = "Nastavenia appky";
+"settings.bio.on" = "Zapnúť zámok cez %@";
+"settings.bio.off" = "Vypnúť zámok cez %@";
+"settings.bio.unavailable" = "Najprv si v telefóne nastav Face ID, Touch ID alebo kód.";
+"settings.notifications" = "Upozornenia";
+"settings.close" = "Zavrieť";
+"download.failed" = "Súbor sa nepodarilo stiahnuť. Skús to znova.";

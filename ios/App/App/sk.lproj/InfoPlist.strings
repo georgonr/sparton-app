@@ -1,0 +1,6 @@
+/* Texty povolení a skratky (SK, tyká, krátko a pravdivo) */
+"CFBundleDisplayName" = "spartON";
+"NSCameraUsageDescription" = "Fotoaparát použiješ, keď chceš odfotiť a nahrať fotku do spartON, napríklad z tréningu.";
+"NSPhotoLibraryUsageDescription" = "Do spartON sa nahrajú len fotky, ktoré sám vyberieš.";
+"NSFaceIDUsageDescription" = "Face ID odomyká appku spartON. Údaje tváre ostávajú v tvojom telefóne.";
+"shortcut.settings" = "Nastavenia appky";
